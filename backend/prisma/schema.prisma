@@ -1,0 +1,370 @@
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+  
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum ChatStatus {
+  OPEN
+  CLOSED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(CUSTOMER)
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  avatar       String?
+  phone        String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  addresses     Address[]
+  orders        Order[]
+  reviews       Review[]
+  wishlist      WishlistItem[]
+  chatRooms     ChatRoom[]
+  messages      ChatMessage[]
+  refreshTokens RefreshToken[]
+  aiSearches    AiSearch[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String  @map("user_id")
+  label      String  @default("Home")
+  line1      String
+  line2      String?
+  city       String
+  state      String?
+  postalCode String  @map("postal_code")
+  country    String  @default("ET")
+  isDefault  Boolean @default(false) @map("is_default")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTS & CATALOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  imageUrl    String?    @map("image_url")
+  parentId    String?    @map("parent_id")
+  position    Int        @default(0)
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String
+  price        Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2) @map("compare_price")
+  categoryId   String   @map("category_id")
+  tags         String[] @default([])
+  material     String?
+  careInfo     String?  @map("care_info")
+  isPublished  Boolean  @default(false) @map("is_published")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  viewCount    Int      @default(0) @map("view_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // AI embedding for semantic search (1536 dims = OpenAI text-embedding-3-small)
+
+  // Relations
+  category   Category         @relation(fields: [categoryId], references: [id])
+  variants   ProductVariant[]
+  images     ProductImage[]
+  reviews    Review[]
+  wishlist   WishlistItem[]
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@index([isPublished])
+  @@index([isFeatured])
+  @@map("products")
+}
+
+model ProductVariant {
+  id            String   @id @default(uuid())
+  productId     String   @map("product_id")
+  size          String?
+  color         String?
+  colorHex      String?  @map("color_hex")
+  sku           String   @unique
+  stock         Int      @default(0)
+  priceModifier Decimal  @default(0) @db.Decimal(10, 2) @map("price_modifier")
+  weight        Float?
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  wishlist   WishlistItem[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  url       String
+  publicId  String?  @map("public_id")
+  alt       String?
+  isPrimary Boolean  @default(false) @map("is_primary")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDERS & PAYMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Order {
+  id               String      @id @default(uuid())
+  userId           String      @map("user_id")
+  status           OrderStatus @default(PENDING)
+  subtotal         Decimal     @db.Decimal(10, 2)
+  discountAmount   Decimal     @default(0) @db.Decimal(10, 2) @map("discount_amount")
+  shippingCost     Decimal     @default(0) @db.Decimal(10, 2) @map("shipping_cost")
+  total            Decimal     @db.Decimal(10, 2)
+  discountId       String?     @map("discount_id")
+  addressId        String?     @map("address_id")
+  stripePaymentId  String?     @map("stripe_payment_id")
+  stripeSessionId  String?     @map("stripe_session_id")
+  notes            String?
+  trackingNumber   String?     @map("tracking_number")
+  shippedAt        DateTime?   @map("shipped_at")
+  deliveredAt      DateTime?   @map("delivered_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  user     User           @relation(fields: [userId], references: [id])
+  address  Address?       @relation(fields: [addressId], references: [id])
+  discount DiscountCode?  @relation(fields: [discountId], references: [id])
+  items    OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  @map("order_id")
+  variantId String  @map("variant_id")
+  productId String  @map("product_id")
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+  product Product        @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCOUNTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DiscountCode {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  description String?
+  type        DiscountType
+  value       Decimal      @db.Decimal(10, 2)
+  minOrder    Decimal?     @db.Decimal(10, 2) @map("min_order")
+  usesLimit   Int?         @map("uses_limit")
+  usesCount   Int          @default(0) @map("uses_count")
+  isActive    Boolean      @default(true) @map("is_active")
+  expiresAt   DateTime?    @map("expires_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  orders Order[]
+
+  @@map("discount_codes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Review {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  productId        String   @map("product_id")
+  rating           Int      // 1–5
+  title            String?
+  body             String
+  images           String[] @default([])
+  verifiedPurchase Boolean  @default(false) @map("verified_purchase")
+  helpfulCount     Int      @default(0) @map("helpful_count")
+  isApproved       Boolean  @default(true) @map("is_approved")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@index([rating])
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WISHLIST
+// ─────────────────────────────────────────────────────────────────────────────
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  variantId String?  @map("variant_id")
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("wishlist_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ChatRoom {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  status    ChatStatus @default(OPEN)
+  subject   String?
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  user     User          @relation(fields: [userId], references: [id])
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("chat_rooms")
+}
+
+model ChatMessage {
+  id        String    @id @default(uuid())
+  roomId    String    @map("room_id")
+  senderId  String    @map("sender_id")
+  body      String
+  isAdmin   Boolean   @default(false) @map("is_admin")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User     @relation(fields: [senderId], references: [id])
+
+  @@index([roomId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI SEARCH LOGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AiSearch {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  query      String
+  resultIds  String[] @map("result_ids")
+  clickedId  String?  @map("clicked_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_searches")
+}
