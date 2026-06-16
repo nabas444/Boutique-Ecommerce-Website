@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: boutique_postgres
     restart: unless-stopped
     environment:
@@ -10,11 +8,15 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-boutique_secret}
       POSTGRES_DB: ${POSTGRES_DB:-boutique_db}
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-boutique} -d ${POSTGRES_DB:-boutique_db}']
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-boutique} -d ${POSTGRES_DB:-boutique_db}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,11 +26,11 @@ services:
     container_name: boutique_redis
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,11 +54,13 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GROK_API_KEY: ${GROK_API_KEY}
+      GROK_EMBED_URL: ${GROK_EMBED_URL}
       CLOUDINARY_URL: ${CLOUDINARY_URL}
       PORT: 4000
       NODE_ENV: development
     ports:
-      - '4000:4000'
+      - "4000:4000"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -71,10 +75,13 @@ services:
     depends_on:
       - backend
     environment:
+      # Point to backend service hostname when running via Docker Compose
+      # When developing inside Docker but browsing from the host machine,
+      # the browser should use `localhost:4000` to reach the backend.
       VITE_API_URL: http://localhost:4000
       VITE_STRIPE_PUBLIC_KEY: ${VITE_STRIPE_PUBLIC_KEY}
     ports:
-      - '5173:5173'
+      - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules

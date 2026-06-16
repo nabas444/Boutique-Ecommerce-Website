@@ -6,7 +6,6 @@ import {
   ProductQuery,
 } from "./products.schema";
 import { generateSlug } from "../../utils/slug";
-// AI TEMPORARILY DISABLED
 // Create a safe, lazy OpenAI client only when a real key is present.
 // This avoids startup crashes when the key is missing or set to 'dummy_key'.
 let openai: any = null;
@@ -17,12 +16,87 @@ if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy_key") {
     const { default: OpenAI } = require("openai");
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch (err) {
-    // AI TEMPORARILY DISABLED - fail safely by leaving `openai` as null
+    // Fail safely by leaving `openai` as null if OpenAI package is missing
+    console.warn("OpenAI client initialization failed", err);
     openai = null;
   }
 } else {
-  // AI TEMPORARILY DISABLED
+  console.warn("OpenAI API key not configured");
   openai = null;
+}
+
+// Optional Grok embeddings fallback (configure `GROK_API_KEY` and optionally `GROK_EMBEDDING_URL` in .env)
+const GROK_API_KEY =
+  process.env.GROK_API_KEY || process.env.GROK_AUTH_KEY || null;
+const GROK_EMBEDDING_URL =
+  process.env.GROK_EMBEDDING_URL || "https://api.grok.ai/v1/embeddings";
+
+async function fetchGrokEmbedding(text: string) {
+  if (!GROK_API_KEY) throw new Error("Grok API key not configured");
+  try {
+    const res = await fetch(GROK_EMBEDDING_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROK_API_KEY}`,
+      },
+      body: JSON.stringify({ input: text }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Grok embedding failed: ${res.status} ${txt}`);
+    }
+    const body: any = await res.json();
+    // Expecting OpenAI-like shape: { data: [{ embedding: [...] }] }
+    if (body?.data && Array.isArray(body.data) && body.data[0]?.embedding) {
+      return body.data[0].embedding;
+    }
+    // Fallback: try common fields
+    if (body?.embedding) return body.embedding;
+    throw new Error("Grok embedding response missing embedding");
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function getEmbedding(text: string) {
+  // Try OpenAI first if available
+  if (openai) {
+    try {
+      const embeddingRes: any = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: text,
+      });
+      return embeddingRes.data[0].embedding;
+    } catch (err: any) {
+      // Only proceed to Grok on quota/rate-limit or network errors
+      const code = err?.code || err?.status;
+      const recoverable =
+        code === 429 ||
+        err?.type === "insufficient_quota" ||
+        err?.message?.includes("RateLimit");
+      if (!recoverable) throw err;
+      console.warn(
+        "OpenAI embedding failed, attempting Grok fallback",
+        err?.message || err,
+      );
+      // fallthrough to Grok
+    }
+  }
+
+  // Try Grok fallback if configured
+  if (GROK_API_KEY) {
+    try {
+      const grokVec = await fetchGrokEmbedding(text);
+      return grokVec;
+    } catch (gErr) {
+      console.error("Grok embedding failed", gErr);
+      throw gErr;
+    }
+  }
+
+  // No provider available
+  throw new Error("No embeddings provider available");
 }
 
 // ─── Select shape reused across queries ────────────────────────────────────────
@@ -63,6 +137,7 @@ export async function getProducts(query: ProductQuery, isAdmin = false) {
     inStock,
     isFeatured,
     sortBy,
+    q,
   } = query;
 
   const skip = (page - 1) * limit;
@@ -94,6 +169,29 @@ export async function getProducts(query: ProductQuery, isAdmin = false) {
       variantWhere.color = { in: colors.split(",").map((c) => c.trim()) };
     if (inStock) variantWhere.stock = { gt: 0 };
     where.variants = { some: variantWhere };
+  }
+
+  // Text query search (name, description, tags, category).
+  // Split into tokens and require ALL tokens (AND) across any of the searchable fields.
+  if (q) {
+    const qTrim = String(q).trim();
+    if (qTrim) {
+      const tokens = qTrim
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (tokens.length > 0) {
+        // For each token, create an OR clause that checks multiple fields.
+        where.AND = tokens.map((token) => ({
+          OR: [
+            { name: { contains: token, mode: "insensitive" } },
+            { description: { contains: token, mode: "insensitive" } },
+            { tags: { hasSome: [token.toLowerCase()] } },
+            { category: { name: { contains: token, mode: "insensitive" } } },
+          ],
+        }));
+      }
+    }
   }
 
   // Sort order
@@ -204,23 +302,16 @@ export async function aiSearch(query: string, userId?: string) {
     process.env.OPENAI_API_KEY === "dummy_key" ||
     !openai
   ) {
-    // AI TEMPORARILY DISABLED
     return textSearch(query);
   }
 
-  let embeddingRes: any;
+  let embedding: number[];
   try {
-    embeddingRes = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: query,
-    });
+    embedding = await getEmbedding(query);
   } catch (err) {
-    // If OpenAI call fails for any reason, fall back to text search.
-    // AI TEMPORARILY DISABLED
+    console.error("AI search embedding failed", err);
     return textSearch(query);
   }
-
-  const embedding = embeddingRes.data[0].embedding;
   const vectorStr = `[${embedding.join(",")}]`;
 
   // pgvector cosine similarity search
@@ -256,15 +347,28 @@ export async function aiSearch(query: string, userId?: string) {
 }
 
 async function textSearch(query: string) {
-  return db.product.findMany({
-    where: {
-      isPublished: true,
+  const qTrim = String(query || "").trim();
+  if (!qTrim) return [];
+  const tokens = qTrim
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  // Require ALL tokens (AND) but allow each token to match across several fields (OR)
+  const whereClause: any = { isPublished: true };
+  if (tokens.length > 0) {
+    whereClause.AND = tokens.map((token) => ({
       OR: [
-        { name: { contains: query, mode: "insensitive" } },
-        { description: { contains: query, mode: "insensitive" } },
-        { tags: { hasSome: [query.toLowerCase()] } },
+        { name: { contains: token, mode: "insensitive" } },
+        { description: { contains: token, mode: "insensitive" } },
+        { tags: { hasSome: [token.toLowerCase()] } },
+        { category: { name: { contains: token, mode: "insensitive" } } },
       ],
-    },
+    }));
+  }
+
+  return db.product.findMany({
+    where: whereClause,
     select: productSelect,
     take: 20,
   });
@@ -357,23 +461,18 @@ async function generateAndStoreEmbedding(
     process.env.OPENAI_API_KEY === "dummy_key" ||
     !openai
   ) {
-    // AI TEMPORARILY DISABLED
     return;
   }
 
   const text = `${name}. ${description}`.slice(0, 2000);
   let res: any;
+  let vector: number[];
   try {
-    res = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
-    });
+    vector = await getEmbedding(text);
   } catch (err) {
-    // AI TEMPORARILY DISABLED - don't propagate error
+    console.error("Failed to generate embedding for product", productId, err);
     return;
   }
-
-  const vector = res.data[0].embedding;
   await db.$executeRaw`
     UPDATE products
     SET embedding = ${`[${vector.join(",")}]`}::vector

@@ -1,8 +1,15 @@
-import axios from 'axios';
-import { useAuthStore } from '../store/authStore';
+import axios from "axios";
+import { useAuthStore } from "../store/authStore";
+
+// When `VITE_API_URL` is set (in Docker/dev), use it directly to avoid
+// relying on the dev-server proxy. Otherwise use the relative `/api` path
+// so the app works in hosted environments.
+const backendBase = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api`
+  : "/api";
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: backendBase,
   withCredentials: true,
 });
 
@@ -45,7 +52,11 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { data } = await axios.post(
+          "/api/auth/refresh",
+          {},
+          { withCredentials: true },
+        );
         const newToken = data.data.accessToken;
         useAuthStore.getState().setAccessToken(newToken);
         processQueue(null, newToken);
@@ -54,14 +65,14 @@ api.interceptors.response.use(
       } catch (err) {
         processQueue(err, null);
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        window.location.href = "/login";
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

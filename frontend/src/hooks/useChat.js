@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { io } from 'socket.io-client';
-import { useAuthStore } from '../store/authStore';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { io } from "socket.io-client";
+import { useAuthStore } from "../store/authStore";
 
 let socketInstance = null;
 
@@ -14,22 +14,28 @@ export function useChat(roomId) {
   useEffect(() => {
     if (!accessToken) return;
 
-    socketInstance = io('/', { auth: { token: accessToken } });
+    // Prefer explicit backend URL from Vite env. If that's not set (dev proxy
+    // or runtime), fall back to the same host on port 4000 so browser clients
+    // connect directly to the backend instead of relying on the dev proxy.
+    const runtimeBackend = `${location.protocol}//${location.hostname}:4000`;
+    const socketUrl = import.meta.env.VITE_API_URL || runtimeBackend || "/";
 
-    socketInstance.on('connect', () => {
+    socketInstance = io(socketUrl, { auth: { token: accessToken } });
+
+    socketInstance.on("connect", () => {
       setConnected(true);
-      if (roomId) socketInstance.emit('chat:join', roomId);
+      if (roomId) socketInstance.emit("chat:join", roomId);
     });
 
-    socketInstance.on('disconnect', () => setConnected(false));
+    socketInstance.on("disconnect", () => setConnected(false));
 
-    socketInstance.on('chat:message', (msg) => {
+    socketInstance.on("chat:message", (msg) => {
       setMessages((prev) =>
-        prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]
+        prev.find((m) => m.id === msg.id) ? prev : [...prev, msg],
       );
     });
 
-    socketInstance.on('chat:typing', ({ isTyping: typing }) => {
+    socketInstance.on("chat:typing", ({ isTyping: typing }) => {
       setIsTyping(typing);
     });
 
@@ -42,29 +48,40 @@ export function useChat(roomId) {
   const sendMessage = useCallback(
     (body) => {
       if (!socketInstance || !roomId || !body.trim()) return;
-      socketInstance.emit('chat:message', { roomId, body: body.trim() });
+      socketInstance.emit("chat:message", { roomId, body: body.trim() });
     },
-    [roomId]
+    [roomId],
   );
 
   const sendTyping = useCallback(
     (isCurrentlyTyping) => {
       if (!socketInstance || !roomId) return;
-      socketInstance.emit('chat:typing', { roomId, isTyping: isCurrentlyTyping });
+      socketInstance.emit("chat:typing", {
+        roomId,
+        isTyping: isCurrentlyTyping,
+      });
       clearTimeout(typingTimeout.current);
       if (isCurrentlyTyping) {
         typingTimeout.current = setTimeout(() => {
-          socketInstance?.emit('chat:typing', { roomId, isTyping: false });
+          socketInstance?.emit("chat:typing", { roomId, isTyping: false });
         }, 1500);
       }
     },
-    [roomId]
+    [roomId],
   );
 
   const markRead = useCallback(() => {
     if (!socketInstance || !roomId) return;
-    socketInstance.emit('chat:read', roomId);
+    socketInstance.emit("chat:read", roomId);
   }, [roomId]);
 
-  return { messages, setMessages, isTyping, connected, sendMessage, sendTyping, markRead };
+  return {
+    messages,
+    setMessages,
+    isTyping,
+    connected,
+    sendMessage,
+    sendTyping,
+    markRead,
+  };
 }

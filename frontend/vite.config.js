@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
@@ -7,12 +7,13 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      '/api': {
-        target: 'http://backend:4000',
+      "/api": {
+        // Use VITE_API_URL when provided (docker/dev), otherwise default to localhost
+        target: process.env.VITE_API_URL || "http://localhost:4000",
         changeOrigin: true,
       },
-      '/socket.io': {
-        target: 'http://backend:4000',
+      "/socket.io": {
+        target: process.env.VITE_API_URL || "http://localhost:4000",
         ws: true,
         changeOrigin: true,
       },

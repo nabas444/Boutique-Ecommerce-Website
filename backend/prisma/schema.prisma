@@ -1,13 +1,13 @@
 generator client {
   provider        = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl"]
-  
+  binaryTargets   = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  
+  extensions = [pgvector(map: "vector")]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,8 +140,7 @@ model Product {
   viewCount    Int      @default(0) @map("view_count")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // AI embedding for semantic search (1536 dims = OpenAI text-embedding-3-small)
+  embedding    Unsupported("vector(1536)")? @map("embedding")
 
   // Relations
   category   Category         @relation(fields: [categoryId], references: [id])
