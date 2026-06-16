@@ -3,6 +3,8 @@ import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { db } from "../config/database";
 import { AuthPayload } from "../middleware/auth.middleware";
+import { aiSearch } from "../modules/products/products.service";
+import { llmReply, fallbackProductSuggestions } from "../modules/ai/ai.service";
 
 let io: Server;
 
@@ -88,6 +90,81 @@ export function initSocket(httpServer: HttpServer) {
             roomId: data.roomId,
             message,
           });
+          // Spawn an AI assistant reply (non-blocking). Use the LLM service for
+          // a conversational reply; include short product suggestions if helpful.
+          (async () => {
+            try {
+              const prompt = `User question: ${data.body}\nRespond as a helpful shopping assistant. If relevant, list up to 5 product suggestions with name and path.`;
+              const aiText = await llmReply(prompt, user.userId).catch(
+                () => null,
+              );
+              if (aiText) {
+                const admin = await db.user.findFirst({
+                  where: { role: "ADMIN" },
+                });
+                if (admin) {
+                  const botMsg = await db.chatMessage.create({
+                    data: {
+                      roomId: data.roomId,
+                      senderId: admin.id,
+                      body: aiText,
+                      isAdmin: true,
+                    },
+                    include: {
+                      sender: {
+                        select: {
+                          id: true,
+                          firstName: true,
+                          lastName: true,
+                          avatar: true,
+                        },
+                      },
+                    },
+                  });
+                  io.to(`room:${data.roomId}`).emit("chat:message", botMsg);
+                }
+              } else {
+                // LLM not available — provide DB-based product suggestions
+                try {
+                  const products = await fallbackProductSuggestions(data.body);
+                  if (products.length > 0) {
+                    const text = products
+                      .map((p: any) => `- ${p.name} — /products/${p.slug}`)
+                      .join("\n");
+                    const replyBody = `Hi — I couldn't reach the AI assistant just now, but here are some products that might help:\n${text}`;
+                    const admin = await db.user.findFirst({
+                      where: { role: "ADMIN" },
+                    });
+                    if (admin) {
+                      const botMsg = await db.chatMessage.create({
+                        data: {
+                          roomId: data.roomId,
+                          senderId: admin.id,
+                          body: replyBody,
+                          isAdmin: true,
+                        },
+                        include: {
+                          sender: {
+                            select: {
+                              id: true,
+                              firstName: true,
+                              lastName: true,
+                              avatar: true,
+                            },
+                          },
+                        },
+                      });
+                      io.to(`room:${data.roomId}`).emit("chat:message", botMsg);
+                    }
+                  }
+                } catch (e) {
+                  console.error("Fallback suggestions failed", e);
+                }
+              }
+            } catch (e) {
+              console.error("AI assistant reply failed", e);
+            }
+          })();
         }
         // If an ADMIN sent the message, notify the room owner (user)
         if (user.role === "ADMIN") {

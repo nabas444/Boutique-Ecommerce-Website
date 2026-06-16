@@ -21,6 +21,7 @@ import orderRoutes from "./modules/orders/orders.routes";
 import cartRoutes from "./modules/orders/cart.routes";
 import paymentRoutes from "./modules/payments/payments.routes";
 import chatRoutes from "./modules/chat/chat.routes";
+import aiRoutes from "./modules/ai/ai.routes";
 import reviewRoutes from "./modules/reviews/reviews.routes";
 import wishlistRoutes from "./modules/wishlist/wishlist.routes";
 import discountRoutes from "./modules/discounts/discounts.routes";
@@ -35,9 +36,17 @@ initSocket(httpServer);
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet());
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  "http://localhost:5174",
+];
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("CORS not allowed"));
+    },
     credentials: true,
   }),
 );
@@ -68,6 +77,7 @@ app.use("/api/orders", cartRoutes); // cart routes first (more specific paths)
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/ai", aiRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/discounts", discountRoutes);

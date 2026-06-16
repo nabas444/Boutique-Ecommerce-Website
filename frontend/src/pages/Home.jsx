@@ -1,4 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
+import bkg from "../assets/bkg.png";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -85,7 +86,7 @@ export default function Home() {
       <section className="relative h-[92vh] min-h-[600px] overflow-hidden bg-stone-900 flex items-center">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1800&q=85"
+            src={bkg}
             alt="Hero"
             className="w-full h-full object-cover opacity-50"
           />
@@ -97,7 +98,7 @@ export default function Home() {
             <div className="flex items-center gap-2 mb-6">
               <Sparkles size={16} className="text-amber-400" />
               <span className="text-amber-400 text-sm font-semibold tracking-widest uppercase">
-                New Season 2025
+                New Season 2026
               </span>
             </div>
             <h1 className="font-display text-6xl sm:text-7xl font-bold text-white leading-[1.05] mb-6">

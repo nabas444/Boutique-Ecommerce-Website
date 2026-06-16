@@ -16,6 +16,7 @@ import useNotificationStore from "../../store/notificationStore";
 import { useCartStore } from "../../store/cartStore";
 import api from "../../api/client";
 import toast from "react-hot-toast";
+import ChatWidget from "./ChatWidget";
 
 const NAV_LINKS = [
   { label: "Shop All", to: "/products" },
@@ -535,6 +536,7 @@ export default function MainLayout() {
           </div>
         </div>
       </footer>
+      <ChatWidget />
     </div>
   );
 }
