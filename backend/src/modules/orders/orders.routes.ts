@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AppError } from '../../middleware/error.middleware';
 import { getCart, deleteCart } from '../../config/redis';
 import { Request, Response, NextFunction } from 'express';
+import { applyOrderStatusTransition } from './orderFulfillment.service';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.get('/', authenticate, async (req: Request, res: Response, next: NextFunc
         include: {
           items: { include: { product: { select: { name: true, images: { take: 1 } } } } },
           address: true,
+          user: isAdmin ? { select: { email: true, firstName: true, lastName: true } } : false,
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -137,45 +139,21 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
     const shippingCost = subtotal >= 500 ? 0 : 50; // Free shipping over 500
     const total = subtotal - discountAmount + shippingCost;
 
-    // Create order + decrement stock in a transaction
-    const order = await db.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
-        data: {
-          userId,
-          subtotal,
-          discountAmount,
-          shippingCost,
-          total,
-          discountId,
-          addressId,
-          notes,
-          status: 'PENDING',
-          items: { create: orderItems },
-        },
-        include: { items: true },
-      });
-
-      // Decrement stock
-      for (const item of cart.items) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
-
-      // Increment discount usage
-      if (discountId) {
-        await tx.discountCode.update({
-          where: { id: discountId },
-          data: { usesCount: { increment: 1 } },
-        });
-      }
-
-      return newOrder;
+    const order = await db.order.create({
+      data: {
+        userId,
+        subtotal,
+        discountAmount,
+        shippingCost,
+        total,
+        discountId,
+        addressId,
+        notes,
+        status: 'PENDING',
+        items: { create: orderItems },
+      },
+      include: { items: true },
     });
-
-    // Clear cart
-    await deleteCart(userId);
 
     res.status(201).json({ success: true, data: order });
   } catch (err) { next(err); }
@@ -189,15 +167,20 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req: Request, res
       trackingNumber: z.string().optional(),
     }).parse(req.body);
 
-    const order = await db.order.update({
+    const order = await db.order.findUnique({
       where: { id: req.params.id },
-      data: {
-        status,
-        trackingNumber,
-        shippedAt: status === 'SHIPPED' ? new Date() : undefined,
-        deliveredAt: status === 'DELIVERED' ? new Date() : undefined,
-      },
-      include: { user: true },
+      include: { items: true, user: true },
+    });
+    if (!order) throw new AppError('Order not found', 404);
+
+    const updateData = {
+      trackingNumber,
+      shippedAt: status === 'SHIPPED' ? new Date() : undefined,
+      deliveredAt: status === 'DELIVERED' ? new Date() : undefined,
+    };
+
+    const updatedOrder = await db.$transaction(async (tx) => {
+      return applyOrderStatusTransition(tx, order, status, updateData);
     });
 
     // Fire shipping email (non-blocking)
@@ -209,7 +192,7 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req: Request, res
         .catch(() => {});
     }
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: updatedOrder });
   } catch (err) { next(err); }
 });
 

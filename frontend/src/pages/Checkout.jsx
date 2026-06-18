@@ -8,7 +8,8 @@ import api from '../api/client';
 import { useCartStore } from '../store/cartStore';
 import toast from 'react-hot-toast';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_placeholder');
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 function AddressForm({ onSave, onCancel }) {
   const [form, setForm] = useState({ label: 'Home', line1: '', city: '', postalCode: '', country: 'ET' });
@@ -50,7 +51,7 @@ function AddressForm({ onSave, onCancel }) {
   );
 }
 
-function PaymentForm({ clientSecret, orderId, onSuccess }) {
+function PaymentForm({ orderId, onSuccess }) {
   const stripe = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
@@ -63,17 +64,39 @@ function PaymentForm({ clientSecret, orderId, onSuccess }) {
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
+        confirmParams: {
+          return_url: `${window.location.origin}/orders/${orderId}`,
+        },
       });
-      if (error) { toast.error(error.message); }
-      else if (paymentIntent.status === 'succeeded') { onSuccess(); }
-    } catch { toast.error('Payment failed'); }
+      if (error) {
+        toast.error(error.message || 'Payment could not be completed');
+        return;
+      }
+      if (paymentIntent?.status === 'succeeded') {
+        await api.post('/payments/confirm', {
+          orderId,
+          paymentIntentId: paymentIntent.id,
+        });
+        onSuccess();
+        return;
+      }
+      toast.error(
+        paymentIntent?.status
+          ? `Payment is ${paymentIntent.status}. Please follow Stripe's instructions or try again.`
+          : 'Payment could not be completed',
+      );
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || err.message || 'Payment failed',
+      );
+    }
     finally { setPaying(false); }
   }
 
   return (
     <form onSubmit={handlePay} className="space-y-4">
       <PaymentElement />
-      <button type="submit" disabled={paying || !stripe}
+      <button type="submit" disabled={paying || !stripe || !elements}
         className="w-full bg-stone-900 hover:bg-stone-800 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 mt-4">
         {paying
           ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -226,9 +249,15 @@ export default function Checkout() {
           {step === 'payment' && clientSecret && (
             <div>
               <h2 className="font-semibold text-stone-900 mb-5 flex items-center gap-2"><Shield size={18} /> Secure Payment</h2>
-              <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-                <PaymentForm clientSecret={clientSecret} orderId={orderId} onSuccess={handlePaymentSuccess} />
-              </Elements>
+              {!stripePromise ? (
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                  Stripe is missing a publishable key. Set VITE_STRIPE_PUBLIC_KEY and restart the frontend server.
+                </div>
+              ) : (
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                  <PaymentForm orderId={orderId} onSuccess={handlePaymentSuccess} />
+                </Elements>
+              )}
               <p className="flex items-center justify-center gap-2 text-xs text-stone-400 mt-4">
                 <Shield size={12} /> Powered by Stripe · Your payment info is secure and encrypted
               </p>

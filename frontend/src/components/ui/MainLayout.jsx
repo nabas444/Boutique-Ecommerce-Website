@@ -2,7 +2,6 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   ShoppingBag,
   Heart,
-  MessageCircle,
   User,
   LogOut,
   Menu,
@@ -17,6 +16,7 @@ import { useCartStore } from "../../store/cartStore";
 import api from "../../api/client";
 import toast from "react-hot-toast";
 import ChatWidget from "./ChatWidget";
+import BackToTopButton from "./BackToTopButton";
 
 const NAV_LINKS = [
   { label: "Shop All", to: "/products" },
@@ -39,8 +39,7 @@ export default function MainLayout() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const itemCount = useCartStore((s) => s.itemCount());
 
-  const { wishlistCount, ordersCount, unreadChats, init, teardown } =
-    useNotificationStore();
+  const { wishlistCount, ordersCount, init, teardown } = useNotificationStore();
 
   // Initialize notification store when authentication changes
   useEffect(() => {
@@ -73,7 +72,9 @@ export default function MainLayout() {
   async function handleLogout() {
     try {
       await api.post("/auth/logout");
-    } catch {}
+    } catch {
+      // Logout should still clear local auth even if the API call fails.
+    }
     logout();
     setUserMenuOpen(false);
     toast.success("Logged out successfully");
@@ -194,20 +195,7 @@ export default function MainLayout() {
                 </div>
               </button>
 
-              {/* Chat — same */}
-              <button
-                onClick={() => requireAuth("/chat")}
-                className="p-2 text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg transition-colors hidden sm:flex"
-              >
-                <div className="relative">
-                  <MessageCircle size={20} />
-                  {unreadChats > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
-                      {unreadChats > 9 ? "9+" : unreadChats}
-                    </span>
-                  )}
-                </div>
-              </button>
+              {/* Support chat removed */}
 
               {/* Cart — guests can browse but checkout requires login */}
               <button
@@ -260,11 +248,7 @@ export default function MainLayout() {
                           icon: ShoppingBag,
                         },
                         { label: "Wishlist", to: "/wishlist", icon: Heart },
-                        {
-                          label: "Support Chat",
-                          to: "/chat",
-                          icon: MessageCircle,
-                        },
+                        // Support Chat removed
                       ].map(({ label, to, icon: Icon }) => (
                         <Link
                           key={to}
@@ -381,12 +365,7 @@ export default function MainLayout() {
                       </span>
                     )}
                   </Link>
-                  <Link
-                    to="/chat"
-                    className="block px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-50 rounded-xl"
-                  >
-                    Support Chat
-                  </Link>
+                  {/* Support Chat removed */}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl"
@@ -536,6 +515,7 @@ export default function MainLayout() {
           </div>
         </div>
       </footer>
+      <BackToTopButton />
       <ChatWidget />
     </div>
   );

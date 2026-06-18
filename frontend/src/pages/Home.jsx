@@ -85,44 +85,72 @@ export default function Home() {
       {/* ── Hero ── */}
       <section className="relative h-[92vh] min-h-[600px] overflow-hidden bg-stone-900 flex items-center">
         <div className="absolute inset-0">
+          {/* 🔆 Brighter: opacity-75 instead of opacity-50 */}
           <img
             src={bkg}
             alt="Hero"
-            className="w-full h-full object-cover opacity-50"
+            className="w-full h-full object-cover opacity-95"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/90 via-stone-900/50 to-transparent" />
+          {/*
+            Amazon-style gradient: heavy dark on the left where text lives,
+            fades to near-transparent on the right so the image breathes.
+            The via stop is pushed darker (stone-900/60) to keep text sharp
+            against the now-brighter image.
+          */}
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/75 via-stone-900/35 to-stone-900/0" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-xl">
+            {/* Badge */}
             <div className="flex items-center gap-2 mb-6">
-              <Sparkles size={16} className="text-amber-400" />
-              <span className="text-amber-400 text-sm font-semibold tracking-widest uppercase">
+              <Sparkles size={16} className="text-amber-300" />
+              <span className="text-amber-300 text-sm font-semibold tracking-widest uppercase drop-shadow-sm">
                 New Season 2026
               </span>
             </div>
-            <h1 className="font-display text-6xl sm:text-7xl font-bold text-white leading-[1.05] mb-6">
+
+            {/*
+              Heading: drop-shadow gives the letters a crisp dark halo so they
+              stay punchy even as the background gets brighter behind them.
+            */}
+            <h1
+              className="font-display text-6xl sm:text-7xl font-bold text-white leading-[1.05] mb-6"
+              style={{ textShadow: "0 2px 12px rgba(0,0,0,0.55)" }}
+            >
               Dress
               <br />
               <span className="text-amber-400">Your</span>
               <br />
               Story.
             </h1>
-            <p className="text-stone-300 text-lg mb-10 leading-relaxed">
+
+            {/* Body copy: white instead of stone-300 for better contrast */}
+            <p
+              className="text-white/90 text-lg mb-10 leading-relaxed"
+              style={{ textShadow: "0 1px 6px rgba(0,0,0,0.45)" }}
+            >
               Premium fashion for every occasion. Discover handpicked pieces
               that define your style — no account needed to explore.
             </p>
+
             <div className="flex flex-wrap gap-4">
+              {/* Primary CTA — solid white, unchanged */}
               <button
                 onClick={() => navigate("/products")}
-                className="flex items-center gap-2 bg-white text-stone-900 font-semibold px-8 py-4 rounded-2xl hover:bg-stone-100 transition-colors text-sm leading-none"
+                className="flex items-center gap-2 bg-white text-stone-900 font-semibold px-8 py-4 rounded-2xl hover:bg-amber-50 transition-colors text-sm leading-none shadow-lg"
               >
                 <span className="self-center">Shop Collection</span>
                 <ArrowRight size={18} className="self-center inline-block" />
               </button>
+
+              {/*
+                Secondary CTA: border bumped to white/50 and background to
+                white/15 so it reads against the brighter image.
+              */}
               <button
                 onClick={() => navigate("/products?isFeatured=true")}
-                className="flex items-center gap-2 border border-white/30 text-white font-medium px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors text-sm leading-none"
+                className="flex items-center gap-2 border border-white/50 bg-white/15 text-white font-medium px-8 py-4 rounded-2xl hover:bg-white/25 transition-colors text-sm leading-none backdrop-blur-sm"
               >
                 <span className="self-center">Featured Picks</span>
                 <ArrowRight size={18} className="self-center inline-block" />

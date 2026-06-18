@@ -194,7 +194,7 @@ export default function AdminAnalytics() {
                   </td>
                   <td className="py-3">
                     <p className="text-sm font-semibold text-stone-900">
-                      ${((item._sum?.unitPrice || 0) * (item._sum?.quantity || 0) / (item._count?.productId || 1)).toFixed(2)}
+                      ${Number(item.revenue || 0).toFixed(2)}
                     </p>
                   </td>
                 </tr>

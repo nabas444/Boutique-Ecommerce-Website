@@ -16,6 +16,13 @@ if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy_key") {
   }
 }
 
+// Optional Google Gemini/Vertex-style configuration. For safety the code
+// only attempts a Gemini call when both `GEMINI_API_KEY` and
+// `GEMINI_API_URL` are provided in the environment. Do NOT commit API keys
+// to source control — set them in your environment or a secrets store.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || null;
+const GEMINI_API_URL = process.env.GEMINI_API_URL || null;
+
 const GROK_API_KEY =
   process.env.GROK_API_KEY || process.env.GROK_AUTH_KEY || null;
 const GROK_COMPLETION_URL =
@@ -25,6 +32,38 @@ const HF_API_KEY = process.env.HF_API_KEY || null;
 const HF_MODEL = process.env.HF_MODEL || "google/flan-t5-small";
 
 export async function llmReply(prompt: string, userId?: string) {
+  // Prefer Gemini if explicitly configured (user provided key + URL)
+  if (GEMINI_API_KEY && GEMINI_API_URL) {
+    try {
+      const resp = await fetch(GEMINI_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+        },
+        body: JSON.stringify({ input: prompt }),
+      });
+      const body: any = await resp.json();
+      // Try several likely response shapes used by generative APIs.
+      if (body?.candidates && body.candidates[0]) {
+        // Vertex/Gemini-like candidate structure
+        const cand = body.candidates[0];
+        if (typeof cand === "string") return String(cand).trim();
+        if (cand?.content) {
+          // content may be an array or object
+          if (Array.isArray(cand.content) && cand.content[0]?.text)
+            return String(cand.content[0].text).trim();
+          if (cand.content?.text) return String(cand.content.text).trim();
+        }
+      }
+      if (body?.output && typeof body.output === "string")
+        return body.output.trim();
+      if (body?.output && Array.isArray(body.output) && body.output[0]?.content)
+        return String(body.output[0].content).trim();
+    } catch (err) {
+      console.warn("Gemini completion failed, falling back to other providers");
+    }
+  }
   // prefer OpenAI Chat completions when available
   if (openai) {
     try {

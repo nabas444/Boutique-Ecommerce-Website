@@ -1,3 +1,28 @@
+import path from "path";
+import fs from "fs";
+
+function loadEnvFile(filePath: string) {
+  if (!fs.existsSync(filePath)) return;
+
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+
+    const [key, ...valueParts] = trimmed.split("=");
+    if (!key || process.env[key] !== undefined) continue;
+
+    const value = valueParts
+      .join("=")
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
+    process.env[key] = value;
+  }
+}
+
+loadEnvFile(path.resolve(__dirname, "../../.env"));
+loadEnvFile(path.resolve(process.cwd(), ".env"));
+
 import express from "express";
 import { createServer } from "http";
 import cors from "cors";
@@ -8,7 +33,6 @@ import morgan from "morgan";
 
 import { db } from "./config/database";
 import { redis } from "./config/redis";
-import { initSocket } from "./sockets/chat.socket";
 import { errorMiddleware } from "./middleware/error.middleware";
 import { rateLimiter } from "./middleware/rateLimit.middleware";
 
@@ -20,7 +44,7 @@ import imageRoutes from "./modules/products/images.routes";
 import orderRoutes from "./modules/orders/orders.routes";
 import cartRoutes from "./modules/orders/cart.routes";
 import paymentRoutes from "./modules/payments/payments.routes";
-import chatRoutes from "./modules/chat/chat.routes";
+// chatRoutes removed per feature cleanup
 import aiRoutes from "./modules/ai/ai.routes";
 import reviewRoutes from "./modules/reviews/reviews.routes";
 import wishlistRoutes from "./modules/wishlist/wishlist.routes";
@@ -31,8 +55,7 @@ import userRoutes from "./modules/auth/user.routes";
 const app = express();
 const httpServer = createServer(app);
 
-// ─── Socket.IO ───────────────────────────────────────────────────────────────
-initSocket(httpServer);
+// Socket.IO/chat initialization removed (internal support chat feature deleted)
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet());
@@ -76,7 +99,6 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/orders", cartRoutes); // cart routes first (more specific paths)
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/api/chat", chatRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/wishlist", wishlistRoutes);
@@ -96,11 +118,17 @@ const PORT = Number(process.env.PORT) || 4000;
 
 async function bootstrap() {
   try {
-    await db.$connect();
-    console.log("✅ PostgreSQL connected");
+    if (!process.env.SKIP_STARTUP_CHECKS) {
+      await db.$connect();
+      console.log("✅ PostgreSQL connected");
 
-    await redis.ping();
-    console.log("✅ Redis connected");
+      await redis.ping();
+      console.log("✅ Redis connected");
+    } else {
+      console.log(
+        "⚠️ SKIP_STARTUP_CHECKS is set — skipping DB/Redis connections for local dev",
+      );
+    }
 
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);

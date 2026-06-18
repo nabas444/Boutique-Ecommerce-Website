@@ -17,14 +17,14 @@ import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Wishlist from "./pages/Wishlist";
 import Profile from "./pages/Profile";
-import Chat from "./pages/Chat";
+// Chat page removed
 
 // Admin only
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminProducts from "./pages/admin/Products";
 import AdminOrders from "./pages/admin/Orders";
 import AdminDiscounts from "./pages/admin/Discounts";
-import AdminChat from "./pages/admin/Chat";
+// Admin chat page removed
 import AdminAnalytics from "./pages/admin/Analytics";
 import RefundPolicy from "./pages/RefundPolicy";
 import FAQ from "./pages/FAQ";
@@ -132,14 +132,7 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/chat"
-            element={
-              <RequireAuth>
-                <Chat />
-              </RequireAuth>
-            }
-          />
+          {/* Support chat removed */}
         </Route>
 
         {/* ── Admin uses its own sidebar layout ── */}
@@ -155,7 +148,7 @@ export default function App() {
           <Route path="products" element={<AdminProducts />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="discounts" element={<AdminDiscounts />} />
-          <Route path="chat" element={<AdminChat />} />
+          {/* Admin support chat removed */}
           <Route path="analytics" element={<AdminAnalytics />} />
         </Route>
 
