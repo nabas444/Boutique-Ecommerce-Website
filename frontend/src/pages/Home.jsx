@@ -100,7 +100,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-stone-900/75 via-stone-900/35 to-stone-900/0" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 xl:px-16 2xl:px-20">
           <div className="max-w-xl">
             {/* Badge */}
             <div className="flex items-center gap-2 mb-6">
