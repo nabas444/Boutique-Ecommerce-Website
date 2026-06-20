@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useNotificationStore from "../../store/notificationStore";
 
-export default function ProductCard({ product, compact = false }) {
+export default function ProductCard({ product, compact = false, hideSoldOutBadge = false }) {
   const [wishlisted, setWishlisted] = useState(false);
   const [adding, setAdding] = useState(false);
   const { isAuthenticated } = useAuthStore();
@@ -146,7 +146,7 @@ export default function ProductCard({ product, compact = false }) {
               Featured
             </span>
           )}
-          {!inStock && (
+          {!inStock && !hideSoldOutBadge && (
             <span className="bg-stone-700 text-white text-xs font-bold px-2 py-0.5 rounded-lg">
               Sold Out
             </span>

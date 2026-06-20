@@ -525,7 +525,7 @@ export default function ProductDetail() {
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {product.related.map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <ProductCard key={p.id} product={p} hideSoldOutBadge />
               ))}
             </div>
           </div>
