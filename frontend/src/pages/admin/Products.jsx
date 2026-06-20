@@ -209,7 +209,7 @@ function ProductModal({ product, categories, onClose, onSaved }) {
           </button>
         </div>
 
-          <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs font-medium">Name *</label>
@@ -334,7 +334,10 @@ function ProductModal({ product, categories, onClose, onSaved }) {
             </div>
             <div className="space-y-2 mt-2">
               {(form.variants || []).map((v, i) => (
-                <div key={i} className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-center">
+                <div
+                  key={i}
+                  className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-center"
+                >
                   <input
                     value={v.size}
                     onChange={(e) => setVariant(i, "size", e.target.value)}

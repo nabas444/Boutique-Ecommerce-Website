@@ -30,14 +30,17 @@ export default function AdminLayout() {
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('adminSidebarCollapsed') === 'true';
+      return localStorage.getItem("adminSidebarCollapsed") === "true";
     } catch (e) {
       return false;
     }
   });
   useEffect(() => {
     try {
-      localStorage.setItem('adminSidebarCollapsed', collapsed ? 'true' : 'false');
+      localStorage.setItem(
+        "adminSidebarCollapsed",
+        collapsed ? "true" : "false",
+      );
     } catch (e) {}
   }, [collapsed]);
   const navigate = useNavigate();
