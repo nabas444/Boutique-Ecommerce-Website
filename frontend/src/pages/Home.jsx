@@ -89,7 +89,7 @@ export default function Home() {
           <img
             src={bkg}
             alt="Hero"
-            className="w-full h-full object-cover opacity-100"
+            className="w-full h-full object-contain sm:object-cover opacity-100"
           />
           {/*
             Amazon-style gradient: heavy dark on the left where text lives,
@@ -97,7 +97,7 @@ export default function Home() {
             The via stop is pushed darker (stone-900/60) to keep text sharp
             against the now-brighter image.
           */}
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/55 via-stone-900/20 to-stone-900/0" />
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/55 sm:from-stone-900/75 via-stone-900/20 sm:via-stone-900/35 to-stone-900/0" />
         </div>
 
         <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 xl:px-16 2xl:px-20">
