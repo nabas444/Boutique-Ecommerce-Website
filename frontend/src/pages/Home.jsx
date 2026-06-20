@@ -83,7 +83,7 @@ export default function Home() {
   return (
     <div>
       {/* ── Hero ── */}
-      <section className="relative h-[92vh] min-h-[600px] overflow-hidden bg-stone-900 flex items-center">
+      <section className="relative h-[92vh] min-h-[480px] sm:min-h-[600px] overflow-hidden bg-stone-900 flex items-center">
         <div className="absolute inset-0">
           {/* 🔆 Brighter: opacity-75 instead of opacity-50 */}
           <img

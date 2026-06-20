@@ -209,9 +209,9 @@ function ProductModal({ product, categories, onClose, onSaved }) {
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs font-medium">Name *</label>
               <input
                 value={form.name}
@@ -239,7 +239,7 @@ function ProductModal({ product, categories, onClose, onSaved }) {
                 className="w-full border rounded px-3 py-2"
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs font-medium">Category *</label>
               <select
                 value={form.categoryId}
@@ -280,7 +280,7 @@ function ProductModal({ product, categories, onClose, onSaved }) {
                 className="w-full border rounded px-3 py-2"
               />
             </div>
-            <div className="col-span-2 grid grid-cols-2 gap-3">
+            <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl">
                   <div>
@@ -334,35 +334,35 @@ function ProductModal({ product, categories, onClose, onSaved }) {
             </div>
             <div className="space-y-2 mt-2">
               {(form.variants || []).map((v, i) => (
-                <div key={i} className="grid grid-cols-6 gap-2 items-center">
+                <div key={i} className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-center">
                   <input
                     value={v.size}
                     onChange={(e) => setVariant(i, "size", e.target.value)}
                     placeholder="Size"
-                    className="col-span-1 border rounded px-2 py-1"
+                    className="col-span-1 sm:col-span-1 border rounded px-2 py-1"
                   />
                   <input
                     value={v.color}
                     onChange={(e) => setVariant(i, "color", e.target.value)}
                     placeholder="Color"
-                    className="col-span-1 border rounded px-2 py-1"
+                    className="col-span-1 sm:col-span-1 border rounded px-2 py-1"
                   />
                   <input
                     value={v.sku}
                     onChange={(e) => setVariant(i, "sku", e.target.value)}
                     placeholder="SKU"
-                    className="col-span-2 border rounded px-2 py-1"
+                    className="col-span-1 sm:col-span-2 border rounded px-2 py-1"
                   />
                   <input
                     type="number"
                     value={v.stock}
                     onChange={(e) => setVariant(i, "stock", e.target.value)}
                     placeholder="Stock"
-                    className="col-span-1 border rounded px-2 py-1"
+                    className="col-span-1 sm:col-span-1 border rounded px-2 py-1"
                   />
                   <button
                     onClick={() => removeVariant(i)}
-                    className="col-span-1 text-red-500"
+                    className="col-span-1 sm:col-span-1 text-red-500"
                   >
                     <Trash2 />
                   </button>
@@ -382,7 +382,7 @@ function ProductModal({ product, categories, onClose, onSaved }) {
               onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
               className="mt-2"
             />
-            <div className="mt-3 grid grid-cols-6 gap-2">
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-6 gap-2">
               {images?.map((img) => (
                 <div key={img.id} className="border rounded p-1 relative">
                   <img
@@ -530,8 +530,8 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      <div className="bg-white border rounded">
-        <table className="w-full table-auto">
+      <div className="bg-white border rounded overflow-x-auto">
+        <table className="w-full table-auto min-w-[720px]">
           <thead>
             <tr className="text-left text-xs text-gray-500">
               <th className="px-4 py-3">Product</th>

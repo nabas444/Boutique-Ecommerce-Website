@@ -74,7 +74,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         {stats.map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-stone-100 p-5">
             <div className="flex items-center justify-between mb-4">

@@ -160,8 +160,8 @@ export default function AdminOrders() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-2xl border border-stone-100 overflow-x-auto">
+        <table className="w-full min-w-[720px]">
           <thead>
             <tr className="border-b border-stone-100">
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-stone-400 uppercase tracking-wider">Order</th>

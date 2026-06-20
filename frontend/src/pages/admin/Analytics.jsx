@@ -60,7 +60,7 @@ export default function AdminAnalytics() {
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { label: 'Total Revenue', value: `$${Number(overview?.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'text-emerald-600' },
           { label: 'Total Orders', value: (overview?.totalOrders || 0).toLocaleString(), icon: ShoppingCart, color: 'text-blue-600' },

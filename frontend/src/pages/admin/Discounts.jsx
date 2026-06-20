@@ -146,7 +146,7 @@ export default function AdminDiscounts() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { label: 'Total Codes', value: discounts.length },
           { label: 'Active', value: discounts.filter(d => d.isActive).length },
@@ -160,8 +160,8 @@ export default function AdminDiscounts() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-2xl border border-stone-100 overflow-x-auto">
+        <table className="w-full min-w-[720px]">
           <thead>
             <tr className="border-b border-stone-100">
               {['Code', 'Type / Value', 'Min Order', 'Uses', 'Expires', 'Status', ''].map(h => (
