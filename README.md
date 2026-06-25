@@ -178,5 +178,5 @@ boutique/
 ---
 
 <div align="center">
-  Made with ❤️ by <a href="https://boutique-ecommerce-website-five.vercel.app/">Natnael Abebe</a>
+  Made by <a href="https://boutique-ecommerce-website-five.vercel.app/">Natnael Abebe</a>
 </div>
